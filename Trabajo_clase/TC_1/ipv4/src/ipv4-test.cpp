@@ -26,7 +26,7 @@ int main( int argc, char * argv[] ) {
    char a[512];
 
    s = new Socket( 's' );
-   s->Connect( ose, 80 );	// usar "osi" en la ECCI, "ose" de sus casas
+   s->Connect( osi, 80 );	// usar "osi" en la ECCI, "ose" de sus casas
    s->Write( elephant );
    s->Read( a, 512 );
    int n;
