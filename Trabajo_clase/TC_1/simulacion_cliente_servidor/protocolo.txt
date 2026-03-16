@@ -1,0 +1,9 @@
+Para esta simulacion mi protocolo a usar se basa en la siguente estructura
+ * REQUEST: Cliente solicita información (message_id indica qué info)
+ * RESPONSE: Servidor responde con la información solicitada
+ * CLOSE: Cierre de conexión
+
+ y el formato de los mensajes: 
+ * Type type;
+ * int message_id;
+ * char message[256];

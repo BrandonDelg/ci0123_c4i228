@@ -1,0 +1,7 @@
+Filesystem
+│
+├── Superblock
+├── Bitmap de bloques libres
+├── Tabla de Inodes
+├── Directorios
+└── Bloques de datos
