@@ -1,103 +1,56 @@
-#include "Servidor.hpp"
 #include "Cliente.hpp"
+#include "ServidorIntermedio.hpp"
+#include "ServidorPiezas.hpp"
+#include <pthread.h>
 #include <cstring>
 
-struct ThreadData {
-    Cliente* cliente;
-    Message* msg;
-    int id;
-};
-
-struct ServerData {
-    Servidor* server;
-};
-
-void* enviar_mensaje(void* arg) {
-    ThreadData* data = (ThreadData*)arg;
-    data->cliente->send_to_server(data->msg);
-    
-    delete data;
+void* router_thread(void* arg) {
+    ((ServidorIntermedio*)arg)->listen();
     return nullptr;
 }
 
-void* listen_server(void* arg) {
-    ServerData* data = (ServerData*)arg;
-    data->server->listen();
-    delete data;
+void* piezas_thread(void* arg) {
+    ((ServidorPiezas*)arg)->listen();
     return nullptr;
 }
 
 int main() {
-    Cliente* cliente = new Cliente();
-    Servidor* server = new Servidor();
-    cliente->Connect(server);
+    Cliente cliente;
+    ServidorIntermedio router;
+    ServidorPiezas piezas;
+    cliente.Connect(&router);
+    router.ConnectServidor(&piezas);
+    piezas.Connect(&router);
+    pthread_t routerT, piezasT;
+    pthread_create(&routerT, nullptr, router_thread, &router);
+    pthread_create(&piezasT, nullptr, piezas_thread, &piezas);
 
-    std::vector<pthread_t> hilos;
-    
-    ServerData* sdata = new ServerData();
-    sdata->server = server;
-    pthread_t serverThread;
-    pthread_create(&serverThread, nullptr, listen_server, sdata);
-    
-    int option = 0;
-    int threadCount = 0;
     bool running = true;
-    while (running) {
-        Message* msg = new Message();
-        std::cout << "\n--- Menu ---" << std::endl;
-        std::cout << "1) GET student's name" << std::endl;
-        std::cout << "2) GET professors's names" << std::endl;
-        std::cout << "3) GET course acronyms" << std::endl;
-        std::cout << "4) Exit" << std::endl;
-        std::cout << "Opción: ";
-        std::cin >> option;
-        
-        if (option >= 1 && option <= 4) {
-            msg->message_id = option;
-            msg->type = (option == 4) ? CLOSE : REQUEST;
-            
-            std::string mensaje;
-            switch(option) {
-                case 1: 
-                    mensaje = "GET student's name";
-                break;
-                case 2: 
-                    mensaje = "GET professors's names";
-                break;
-                case 3: 
-                    mensaje = "GET course acronyms";
-                    break;
-                case 4: 
-                    mensaje = "Salir";
-                default:
-                break;
-            }
-            strncpy(msg->message, mensaje.c_str(), sizeof(msg->message) - 1);
-            msg->message[sizeof(msg->message) - 1] = '\0';
-            
-            ThreadData* data = new ThreadData();
-            data->cliente = cliente;
-            data->msg = msg;
-            data->id = threadCount++;
-            
-            pthread_t hilo;
-            pthread_create(&hilo, nullptr, enviar_mensaje, data);
-            hilos.push_back(hilo);
-            if (!cliente->receive_from_server()) {
-                running = false;
-            }
-        } else {
-            std::cout << "Error, comando invalido" << std::endl;
+    while(running) {
+        int opcion;
+        std::cout<<"\n1 Pedir mitad 1 figura car\n";
+        std::cout<<"2 Pedir mitad 2 figura car\n";
+        std::cout<<"3 Salir\n";
+
+        std::cin >> opcion;
+        if(opcion == 3){
+            Message* msg = new Message();
+            msg->type = CLOSE;
+            cliente.send_to_server(msg);
+            running = false;
+            break;
         }
+        Message* msg = new Message();
+        
+        msg->type = REQUEST_FIGURE;
+        strcpy(msg->figura,"car");
+        msg->mitad = opcion;
+        cliente.send_to_server(msg);
+        cliente.receive_from_server();
+
+
     }
-    for (pthread_t& hilo : hilos) {
-        pthread_join(hilo, nullptr);
-    }
-    
-    pthread_join(serverThread, nullptr);
-    
-    delete server;
-    delete cliente;
-    
-    return 0;
+    pthread_join(routerT, nullptr);
+    pthread_join(piezasT, nullptr);
+
 }
