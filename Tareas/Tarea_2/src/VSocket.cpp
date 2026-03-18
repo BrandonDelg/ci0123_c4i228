@@ -58,7 +58,8 @@ void VSocket::Init( char t, bool IPv6 ){
    if ( -1 == sockId ) {
       throw std::runtime_error( "VSocket::Init, (reason)" );
    }
-
+   int opt = 1;
+   setsockopt(sockId, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 }
 
 
@@ -149,7 +150,7 @@ int VSocket::TryToConnect( const char *host, const char *service ) {
    struct addrinfo hints, *result, *rp;
    memset(&hints, 0, sizeof(struct addrinfo));
    hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-   hints.ai_socktype = type == SOCK_DGRAM ? SOCK_DGRAM : SOCK_STREAM;
+   hints.ai_socktype = SOCK_DGRAM;
    hints.ai_flags = 0;
    hints.ai_protocol = 0;          /* Any protocol */
 
@@ -181,15 +182,16 @@ int VSocket::TryToConnect( const char *host, const char *service ) {
 int VSocket::Bind( int port ) {
    struct sockaddr_in6 my_addr6;
 
-   memset(&my_addr6, 0, sizeof(my_addr6));
+   memset(&my_addr6,'\0', sizeof(my_addr6));
    my_addr6.sin6_family = AF_INET6;
    my_addr6.sin6_port = htons(port);
    my_addr6.sin6_addr = in6addr_any;
-
-   if (bind(this->sockId, (struct sockaddr*)&my_addr6, sizeof(my_addr6)) == -1) {
+   int st = bind(this->sockId, (struct sockaddr*)&my_addr6, sizeof(my_addr6));
+   if ( st == -1) {
+      perror("bind");
       throw std::runtime_error("ERROR bind() ipv6");  
    }
-   return 0;
+   return st;
 }
 
 

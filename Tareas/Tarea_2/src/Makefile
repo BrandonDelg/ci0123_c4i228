@@ -12,7 +12,7 @@ TARGETS := ipv6-udp-client.out ipv6-udp-server.out
 ALL := $(TARGETS)
 $(info $$TARGETS = $(TARGETS))
 
-%.o: %.cc $(DEPS)
+%.o: %.cpp $(DEPS)
 	$(CXX) $(CXXFLAGS) $<
 
 %.out: %.o Socket.o VSocket.o
