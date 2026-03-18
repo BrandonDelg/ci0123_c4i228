@@ -75,7 +75,7 @@ VSocket::~VSocket() {
   *
  **/
 void VSocket::Close(){
-      if (sockId >= 0) {
+    if (sockId >= 0) {
         close(sockId);
         sockId = -1;
     }

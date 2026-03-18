@@ -69,6 +69,7 @@ int main() {
                     break;
                 case 4: 
                     mensaje = "Salir";
+                default:
                 break;
             }
             strncpy(msg->message, mensaje.c_str(), sizeof(msg->message) - 1);
@@ -85,6 +86,8 @@ int main() {
             if (!cliente->receive_from_server()) {
                 running = false;
             }
+        } else {
+            std::cout << "Error, comando invalido" << std::endl;
         }
     }
     for (pthread_t& hilo : hilos) {
