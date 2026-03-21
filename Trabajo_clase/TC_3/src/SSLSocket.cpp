@@ -117,18 +117,27 @@ void SSLSocket::InitSSL( bool serverContext ) {
   *  Creates a new SSL server context to start encrypted comunications, this context is stored in class instance
   *
  **/
-void SSLSocket::InitContext( bool serverContext ) {
-   const SSL_METHOD * method;
-   SSL_CTX * context;
+void SSLSocket::InitContext(bool serverContext) {
 
-   if ( serverContext ) {
+   SSL_library_init();
+   OpenSSL_add_all_algorithms();
+   SSL_load_error_strings();
+
+   const SSL_METHOD *method;
+   SSL_CTX *context;
+
+   if (serverContext) {
+      method = TLS_server_method();
    } else {
+      method = TLS_client_method();
    }
 
-   if ( nullptr == method ) {
-      throw std::runtime_error( "SSLSocket::InitContext( bool )" );
+   context = SSL_CTX_new(method);
+   if (!context) {
+      throw std::runtime_error("SSLSocket::InitContext()");
    }
 
+   this->Context = context;
 }
 
 
@@ -154,13 +163,25 @@ void SSLSocket::InitContext( bool serverContext ) {
  *  @param	int port, service number
  *
  **/
-int SSLSocket::Connect( const char * hostName, int port ) {
-   int st;
+int SSLSocket::Connect(const char *hostName, int port) {
 
-   st = this->TryToConnect( hostName, port );		// Establish a non ssl connection first
+   int st = this->TryToConnect(hostName, port);
 
-   return st;
+   if (st < 0) return st;
 
+   SSL *ssl = SSL_new((SSL_CTX*)this->Context);
+
+   SSL_set_fd(ssl, this->sockId);
+
+   this->BIO = ssl;
+
+   st = SSL_connect(ssl);
+   if (st != 1) {
+      ERR_print_errors_fp(stderr);
+      return -1;
+   }
+
+   return 0;
 }
 
 
