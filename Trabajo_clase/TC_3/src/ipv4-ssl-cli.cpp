@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
-
+#include <iostream>
 #include "VSocket.hpp"
 #include "Socket.hpp"
 #include "SSLSocket.hpp"
@@ -28,6 +28,7 @@ int main( int argc, char * argv[] ) {
    if (argc > 1 ) {
       port = 443;
       client = new SSLSocket();	// Create a new stream socket for IPv4
+      std::cout << "ssl client" << std::endl;
    } else {
       client = new Socket( 's' );
       port = 80;

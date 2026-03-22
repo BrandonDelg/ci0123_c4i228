@@ -16,8 +16,8 @@
  
 class VSocket {
    public:
-       void Init( char, bool = false );
-      ~VSocket();
+      void Init( char, bool = false );
+      virtual ~VSocket();
 
       void Close();
       int TryToConnect( const char *, int );

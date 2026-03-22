@@ -82,9 +82,6 @@ void VSocket::Close(){
    if (sockId >= 0) {
       close(sockId);
       sockId = -1;
-   } else {
-      throw std::runtime_error( "VSocket::Close()" );
-
    }
 }
 
