@@ -1,0 +1,16 @@
+# Como compilar?
+
+```.
+en una terminal en la carpeta src use
+make ThreadMirrorServer.out ipv6
+o 
+make ForkMirrorServer.out ipv6
+
+sino indica que es ipv6 se usa ipv4 por default.
+
+en otra terminal ejecute:
+g++ MirrorClient.cpp VSocket.cpp Socket.cpp -o MirrorClient.out
+
+y luego 
+./MirrorClient.out ipv6
+```
