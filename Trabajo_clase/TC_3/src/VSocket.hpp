@@ -13,7 +13,8 @@
 
 #ifndef VSocket_hpp
 #define VSocket_hpp
- 
+#include <cstddef>
+
 class VSocket {
    public:
       void Init( char, bool = false );
