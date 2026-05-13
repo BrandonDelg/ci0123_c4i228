@@ -28,6 +28,11 @@
 #include "system.h"
 #include "syscall.h"
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <strings.h>
 #define SC_NachOS	12345
 
 
@@ -56,8 +61,10 @@ void NachOS_Halt() {		// System call 0
 void NachOS_Exit()
 {
    int status = machine->ReadRegister(4);
-
    DEBUG('u', "Exit system call. Status %d\n", status);
+
+   delete currentThread->space;
+   currentThread->space = NULL;
 
    currentThread->Finish();
 }
@@ -93,36 +100,107 @@ void NachOS_Open() {		// System call 5
 /*
  *  System call interface: OpenFileId Write( char *, int, OpenFileId )
  */
+// void NachOS_Write()
+// {
+//    int addr = machine->ReadRegister(4);
+//    int size = machine->ReadRegister(5);
+//    int file = machine->ReadRegister(6);
+
+//    int car;
+
+//    DEBUG('u', "Write system call\n");
+//    for (int i = 0; i < size; i++) {
+//       if (!machine->ReadMem(addr + i, 1, &car)) {
+//          return;
+//       }
+//       printf("%c", car);
+//    }
+// }
 void NachOS_Write()
 {
    int addr = machine->ReadRegister(4);
    int size = machine->ReadRegister(5);
    int file = machine->ReadRegister(6);
 
+   char buffer[512];
    int car;
 
-   DEBUG('u', "Write system call\n");
+   if (size > 512) size = 512;
+
    for (int i = 0; i < size; i++) {
-      if (!machine->ReadMem(addr + i, 1, &car)) {
-         return;
-      }
-      printf("%c", car);
+      machine->ReadMem(addr + i, 1, &car);
+      buffer[i] = (char) car;
    }
+
+   int result;
+
+   if (file == 1 || file == 2) {
+      result = fwrite(buffer, 1, size, stdout);
+      fflush(stdout);
+   } else {
+      result = send(file, buffer, size, 0);
+   }
+
+   machine->WriteRegister(2, result);
 }
 /*
  *  System call interface: OpenFileId Read( char *, int, OpenFileId )
  */
-void NachOS_Read() {		// System call 7
-}
+void NachOS_Read()
+{
+   int addr = machine->ReadRegister(4);
+   int size = machine->ReadRegister(5);
+   int file = machine->ReadRegister(6);
 
+   char buffer[512];
+
+   if (size > 512) size = 512;
+
+   int result = 0;
+
+   if (file == 0) {
+      int i;
+      for (i = 0; i < size - 1; i++) {
+         int c = getchar();
+         if (c == EOF) break;
+
+         buffer[i] = (char)c;
+
+         if (c == '\n') {
+            i++;
+            break;
+         }
+      }
+
+      result = i;
+   } else {
+      result = recv(file, buffer, size, 0);
+   }
+
+   if (result > 0) {
+      for (int i = 0; i < result; i++) {
+         machine->WriteMem(addr + i, 1, buffer[i]);
+      }
+   }
+
+   machine->WriteRegister(2, result);
+}
 
 /*
  *  System call interface: void Close( OpenFileId )
  */
-void NachOS_Close() {		// System call 8
+void NachOS_Close()
+{
+   int id = machine->ReadRegister(4);
+
+   if (id <= 2) {
+      machine->WriteRegister(2, -1);
+      return;
+   }
+
+   int result = close(id);
+   machine->WriteRegister(2, result);
 }
-
-
 /*
  *  System call interface: void Fork( void (*func)() )
  */
@@ -231,16 +309,57 @@ void NachOS_CondBroadcast() {		// System call 23
 /*
  *  System call interface: Socket_t Socket( int, int )
  */
-void NachOS_Socket() {			// System call 30
-}
+void NachOS_Socket()
+{
+   int family = machine->ReadRegister(4);
+   int type = machine->ReadRegister(5);
 
+   int sockFamily = AF_INET;
+   int sockType = SOCK_STREAM;
+
+   if (type == SOCK_DGRAM_NachOS) {
+      sockType = SOCK_DGRAM;
+   }
+
+   int id = socket(sockFamily, sockType, 0);
+
+   machine->WriteRegister(2, id);
+}
 
 /*
  *  System call interface: Socket_t Connect( char *, int )
  */
-void NachOS_Connect() {		// System call 31
-}
+void NachOS_Connect()
+{
+   int sockId = machine->ReadRegister(4);
+   int ipAddr = machine->ReadRegister(5);
+   int port = machine->ReadRegister(6);
 
+   char ip[64];
+   int car;
+   int i = 0;
+
+   while (i < 63) {
+      machine->ReadMem(ipAddr + i, 1, &car);
+      ip[i] = (char) car;
+
+      if (ip[i] == '\0') break;
+      i++;
+   }
+
+   ip[63] = '\0';
+
+   struct sockaddr_in server;
+   bzero((char *) &server, sizeof(server));
+
+   server.sin_family = AF_INET;
+   server.sin_port = htons(port);
+   server.sin_addr.s_addr = inet_addr(ip);
+
+   int result = connect(sockId, (struct sockaddr *) &server, sizeof(server));
+
+   machine->WriteRegister(2, result);
+}
 
 /*
  *  System call interface: int Bind( Socket_t, int )
@@ -297,13 +416,13 @@ void
 ExceptionHandler(ExceptionType which)
 {
     int type = machine->ReadRegister(2) - SC_Base;
-
     switch ( which ) {
 
        case SyscallException:
           switch ( type ) {
              case SC_Halt:		// System call # 0
                 NachOS_Halt();
+                updatePc();
                 break;
              case SC_Exit:		// System call # 1
                 NachOS_Exit();
@@ -321,15 +440,17 @@ ExceptionHandler(ExceptionType which)
              case SC_Open:		// System call # 5
                 NachOS_Open();
                 break;
+            case SC_Write:		// System call # 7
+               NachOS_Write();
+               updatePc();
+               break;
              case SC_Read:		// System call # 6
                 NachOS_Read();
-                break;
-             case SC_Write:		// System call # 7
-                NachOS_Write();
                 updatePc();
                 break;
              case SC_Close:		// System call # 8
                 NachOS_Close();
+                updatePc();
                 break;
 
              case SC_Fork:		// System call # 9
@@ -383,19 +504,24 @@ ExceptionHandler(ExceptionType which)
 
             case SC_Socket:	// System call # 30
                NachOS_Socket();
-                        break;
+               updatePc();
+               break;
             case SC_Connect:	// System call # 31
                NachOS_Connect();
-                        break;
+               updatePc();
+               break;
             case SC_Bind:	// System call # 32
                NachOS_Bind();
-                        break;
+               updatePc();
+               break;
             case SC_Listen:	// System call # 33
                NachOS_Listen();
-                        break;
+               updatePc();
+               break;
             case SC_Accept:	// System call # 32
                NachOS_Accept();
-                        break;
+               updatePc();
+               break;
             case SC_Shutdown:	// System call # 33
                NachOS_Shutdown();
                break;

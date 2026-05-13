@@ -22,6 +22,8 @@
 class AddrSpace {
   public:
     AddrSpace(OpenFile *executable);	// Create an address space,
+    void LoadSegment(OpenFile *executable, int virtualAddr, int size, int inFileAddr);
+
 					// initializing it with the program
 					// stored in the file "executable"
     ~AddrSpace();			// De-allocate an address space

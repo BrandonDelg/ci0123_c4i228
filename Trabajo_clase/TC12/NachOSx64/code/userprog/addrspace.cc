@@ -42,6 +42,33 @@ static void  SwapHeader (NoffHeader *noffH)
 	noffH->uninitData.inFileAddr = WordToHost(noffH->uninitData.inFileAddr);
 }
 
+
+
+void
+AddrSpace::LoadSegment(OpenFile *executable, int virtualAddr, int size, int inFileAddr)
+{
+    int remaining = size;
+    int offset = 0;
+
+    while (remaining > 0) {
+        int vaddr = virtualAddr + offset;
+        int vpn = vaddr / PageSize;
+        int pageOffset = vaddr % PageSize;
+        int ppn = pageTable[vpn].physicalPage;
+
+        int bytes = PageSize - pageOffset;
+        if (bytes > remaining) bytes = remaining;
+
+        int physAddr = ppn * PageSize + pageOffset;
+
+        executable->ReadAt(&(machine->mainMemory[physAddr]),
+                           bytes,
+                           inFileAddr + offset);
+
+        remaining -= bytes;
+        offset += bytes;
+    }
+}
 //----------------------------------------------------------------------
 // AddrSpace::AddrSpace
 // 	Create an address space to run a user program.
@@ -82,6 +109,13 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
+    // Prueba: reservar frames físicos antes de cargar el programa
+    machine->frameMap->Mark(0);
+    machine->frameMap->Mark(2);
+    machine->frameMap->Mark(4);
+    machine->frameMap->Mark(6);
+    machine->frameMap->Mark(8);
+    machine->frameMap->Mark(10);
 // first, set up the translation 
     this->pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
@@ -97,20 +131,21 @@ AddrSpace::AddrSpace(OpenFile *executable)
     
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
-    bzero(machine->mainMemory, size);
-
+    for (i = 0; i < numPages; i++) {
+        bzero(&(machine->mainMemory[pageTable[i].physicalPage * PageSize]), PageSize);
+    }
 // then, copy in the code and data segments into memory
     if (noffH.code.size > 0) {
-        DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
-			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-			noffH.code.size, noffH.code.inFileAddr);
+         LoadSegment(executable,
+                noffH.code.virtualAddr,
+                noffH.code.size,
+                noffH.code.inFileAddr);
     }
     if (noffH.initData.size > 0) {
-        DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
-			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-			noffH.initData.size, noffH.initData.inFileAddr);
+        LoadSegment(executable,
+                noffH.initData.virtualAddr,
+                noffH.initData.size,
+                noffH.initData.inFileAddr);
     }
 
 }
@@ -122,7 +157,10 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
-   delete pageTable;
+    for (unsigned int i = 0; i < numPages; i++) {
+        machine->frameMap->Clear(pageTable[i].physicalPage);
+    }
+    delete [] pageTable;
 }
 
 //----------------------------------------------------------------------

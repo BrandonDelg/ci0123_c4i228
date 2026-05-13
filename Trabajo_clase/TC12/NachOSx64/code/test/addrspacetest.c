@@ -38,5 +38,5 @@ void main () {
 		Write(buffer,1024,1);
 		i++;
 	}
-	//Exit(0);
+	Exit(0);
 } 	
