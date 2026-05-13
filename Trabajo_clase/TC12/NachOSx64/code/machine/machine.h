@@ -109,7 +109,7 @@ class Instruction {
 class Machine {
   public:
   	BitMap *frameMap;
-	Lock *frameMapLock;
+	// Lock *frameMapLock;
     Machine(bool debug);	// Initialize the simulation of the hardware
 				// for running user programs
     ~Machine();			// De-allocate the data structures

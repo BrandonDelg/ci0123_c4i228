@@ -31,6 +31,14 @@
 #define SC_NachOS	12345
 
 
+void updatePc() {
+   int prev =  machine->ReadRegister(PCReg);
+   int pc = machine->ReadRegister(NextPCReg);
+   machine->WriteRegister(PrevPCReg, prev);
+   machine->WriteRegister(PCReg, pc);
+   machine->WriteRegister(NextPCReg,pc+4);
+}
+
 /*
  *  System call interface: Halt()
  */
@@ -42,19 +50,16 @@ void NachOS_Halt() {		// System call 0
 }
 
 
-
 /*
  *  System call interface: void Exit( int )
  */
-void NachOS_Exit() {
-    int status = machine->ReadRegister(4); // Opcional: ver el estado de salida
-    DEBUG('u', "Exit con estado %d\n", status);
+void NachOS_Exit()
+{
+   int status = machine->ReadRegister(4);
 
-    // Liberar el espacio de direcciones para que el BitMap se limpie
-    delete currentThread->space;
-    currentThread->space = NULL;
+   DEBUG('u', "Exit system call. Status %d\n", status);
 
-    currentThread->Finish();
+   currentThread->Finish();
 }
 
 /*
@@ -84,32 +89,24 @@ void NachOS_Create() {		// System call 4
 void NachOS_Open() {		// System call 5
 }
 
-/*
- *  System call interface: void Write( char *, int, OpenFileId )
- *
- *  OpenFileId
- *     0 (stdin)  --> error
- *     1 (stdout) --> desplegar la información en pantalla (printf)
- *     2 (stderr) --> desplegar la información en pantalla
- *     otros
- *         Verificar que el archivo esté abierto (tabla de archivos abiertos)
- *         Tabla ( vector de enteros { 0, 1, 2, 3 }
- * 
- **/
 
-void NachOS_Write() {
+/*
+ *  System call interface: OpenFileId Write( char *, int, OpenFileId )
+ */
+void NachOS_Write()
+{
    int addr = machine->ReadRegister(4);
    int size = machine->ReadRegister(5);
    int file = machine->ReadRegister(6);
+
    int car;
 
-   if (file == 1 || file == 2) { // stdout o stderr
-       for (int i = 0; i < size; i++) {
-           machine->ReadMem(addr + i, 1, &car);
-           printf("%c", (char)car);
-       }
-       // ESTO ES VITAL:
-       machine->WriteRegister(2, size); 
+   DEBUG('u', "Write system call\n");
+   for (int i = 0; i < size; i++) {
+      if (!machine->ReadMem(addr + i, 1, &car)) {
+         return;
+      }
+      printf("%c", car);
    }
 }
 /*
@@ -295,13 +292,6 @@ void NachOS_Shutdown() {	// System call 25
 //	"which" is the kind of exception.  The list of possible exceptions 
 //	are in machine.h.
 //----------------------------------------------------------------------
-void UpdatePCRegisters() {
-   int pc = machine->ReadRegister(PCReg);
-
-   machine->WriteRegister(PrevPCReg, pc);
-   machine->WriteRegister(PCReg, pc + 4);
-   machine->WriteRegister(NextPCReg, pc + 8);
-}
 
 void
 ExceptionHandler(ExceptionType which)
@@ -336,6 +326,7 @@ ExceptionHandler(ExceptionType which)
                 break;
              case SC_Write:		// System call # 7
                 NachOS_Write();
+                updatePc();
                 break;
              case SC_Close:		// System call # 8
                 NachOS_Close();
@@ -390,23 +381,23 @@ ExceptionHandler(ExceptionType which)
                 NachOS_CondBroadcast();
                 break;
 
-             case SC_Socket:	// System call # 30
-		NachOS_Socket();
-               break;
-             case SC_Connect:	// System call # 31
-		NachOS_Connect();
-               break;
-             case SC_Bind:	// System call # 32
-		NachOS_Bind();
-               break;
-             case SC_Listen:	// System call # 33
-		NachOS_Listen();
-               break;
-             case SC_Accept:	// System call # 32
-		NachOS_Accept();
-               break;
-             case SC_Shutdown:	// System call # 33
-		NachOS_Shutdown();
+            case SC_Socket:	// System call # 30
+               NachOS_Socket();
+                        break;
+            case SC_Connect:	// System call # 31
+               NachOS_Connect();
+                        break;
+            case SC_Bind:	// System call # 32
+               NachOS_Bind();
+                        break;
+            case SC_Listen:	// System call # 33
+               NachOS_Listen();
+                        break;
+            case SC_Accept:	// System call # 32
+               NachOS_Accept();
+                        break;
+            case SC_Shutdown:	// System call # 33
+               NachOS_Shutdown();
                break;
 
              default:
@@ -415,7 +406,6 @@ ExceptionHandler(ExceptionType which)
                 ASSERT( false );
                 break;
           }
-         UpdatePCRegisters();
           break;
 
        case PageFaultException: {

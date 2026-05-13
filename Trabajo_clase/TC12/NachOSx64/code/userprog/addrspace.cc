@@ -1,3 +1,5 @@
+
+
 // addrspace.cc 
 //	Routines to manage address spaces (executing user programs).
 //
@@ -19,7 +21,6 @@
 #include "system.h"
 #include "addrspace.h"
 #include "noff.h"
-#include "synch.h"
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the 
@@ -27,8 +28,7 @@
 //	endian machine, and we're now running on a big endian machine.
 //----------------------------------------------------------------------
 
-static void 
-SwapHeader (NoffHeader *noffH)
+static void  SwapHeader (NoffHeader *noffH)
 {
 	noffH->noffMagic = WordToHost(noffH->noffMagic);
 	noffH->code.size = WordToHost(noffH->code.size);
@@ -63,178 +63,56 @@ AddrSpace::AddrSpace(OpenFile *executable)
     unsigned int i, size;
 
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
-
-    if ((noffH.noffMagic != NOFFMAGIC) &&
-        (WordToHost(noffH.noffMagic) == NOFFMAGIC)) {
-
-        SwapHeader(&noffH);
-    }
-
+    if ((noffH.noffMagic != NOFFMAGIC) && 
+		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
+    	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-    // tamaño total
-
-    size =
-        noffH.code.size +
-        noffH.initData.size +
-        noffH.uninitData.size +
-        UserStackSize;
-
+// how big is address space?
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
+			+ UserStackSize;	// we need to increase the size
+						// to leave room for the stack
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
-    ASSERT(numPages <= NumPhysPages);
+    ASSERT(numPages <= NumPhysPages);		// check we're not trying
+						// to run anything too big --
+						// at least until we have
+						// virtual memory
 
-    DEBUG(
-        'a',
-        "Initializing address space, num pages %d, size %d\n",
-        numPages,
-        size
-    );
-
-    // tabla de páginas
-
-    pageTable = new TranslationEntry[numPages];
-
+    DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
+					numPages, size);
+// first, set up the translation 
+    this->pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
-
-        machine->frameMapLock->Acquire();
-
-        int frame = machine->frameMap->Find();
-
-        machine->frameMapLock->Release();
-
-        ASSERT(frame != -1);
-
-        pageTable[i].virtualPage = i;
-        pageTable[i].physicalPage = frame;
-
-        pageTable[i].valid = true;
-        pageTable[i].use = false;
-        pageTable[i].dirty = false;
-        pageTable[i].readOnly = false;
+	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
+	pageTable[i].physicalPage = machine->frameMap->Find();
+	pageTable[i].valid = true;
+	pageTable[i].use = false;
+	pageTable[i].dirty = false;
+	pageTable[i].readOnly = false;  // if the code segment was entirely on 
+					// a separate page, we could set its 
+					// pages to be read-only
     }
+    
+// zero out the entire address space, to zero the unitialized data segment 
+// and the stack segment
+    bzero(machine->mainMemory, size);
 
-    // limpiar memoria
-
-    for (i = 0; i < numPages; i++) {
-
-        int physAddr =
-            pageTable[i].physicalPage * PageSize;
-
-        bzero(
-            &(machine->mainMemory[physAddr]),
-            PageSize
-        );
-    }
-
-    //
-    // CARGAR SEGMENTO DE CÓDIGO
-    //
-
+// then, copy in the code and data segments into memory
     if (noffH.code.size > 0) {
-
-        DEBUG('a',
-            "Loading code segment, size %d\n",
-            noffH.code.size
-        );
-
-        unsigned int remaining =
-            noffH.code.size;
-
-        unsigned int virtualAddr =
-            noffH.code.virtualAddr;
-
-        unsigned int fileAddr =
-            noffH.code.inFileAddr;
-
-        while (remaining > 0) {
-
-            int vpn =
-                virtualAddr / PageSize;
-
-            int offset =
-                virtualAddr % PageSize;
-
-            int physPage =
-                pageTable[vpn].physicalPage;
-
-            int physAddr =
-                physPage * PageSize;
-
-            int bytesToRead =
-                PageSize - offset;
-
-            if (bytesToRead > (int)remaining) {
-
-                bytesToRead = remaining;
-            }
-
-            executable->ReadAt(
-                &(machine->mainMemory[physAddr + offset]),
-                bytesToRead,
-                fileAddr
-            );
-
-            remaining -= bytesToRead;
-            virtualAddr += bytesToRead;
-            fileAddr += bytesToRead;
-        }
+        DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
+			noffH.code.virtualAddr, noffH.code.size);
+        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
+			noffH.code.size, noffH.code.inFileAddr);
     }
-
-    //
-    // CARGAR DATOS INICIALIZADOS
-    //
-
     if (noffH.initData.size > 0) {
-        DEBUG('a',
-            "Loading data segment, size %d\n",
-            noffH.initData.size
-        );
-        
-        unsigned int remaining =
-        noffH.initData.size;
-        
-        unsigned int virtualAddr =
-        noffH.initData.virtualAddr;
-        
-        unsigned int fileAddr =
-        noffH.initData.inFileAddr;
-        
-        while (remaining > 0) {
-            
-            int vpn =
-            virtualAddr / PageSize;
-            
-            int offset =
-                virtualAddr % PageSize;
-                
-                int physPage =
-                pageTable[vpn].physicalPage;
-                
-                int physAddr =
-                physPage * PageSize;
-                
-                int bytesToRead =
-                PageSize - offset;
-                
-                if (bytesToRead > (int)remaining) {
-                    
-                    bytesToRead = remaining;
-                }
-                
-                executable->ReadAt(
-                    &(machine->mainMemory[physAddr + offset]),
-                    bytesToRead,
-                    fileAddr
-                );
-                
-                DEBUG('a', "Cargando VPN %d en Frame %d (Addr Fisica %d)\n", vpn, physPage, physAddr + offset);
-            remaining -= bytesToRead;
-            virtualAddr += bytesToRead;
-            fileAddr += bytesToRead;
-        }
+        DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
+			noffH.initData.virtualAddr, noffH.initData.size);
+        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
+			noffH.initData.size, noffH.initData.inFileAddr);
     }
+
 }
 
 //----------------------------------------------------------------------
@@ -244,7 +122,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
-   delete [] this->pageTable;
+   delete pageTable;
 }
 
 //----------------------------------------------------------------------
@@ -257,8 +135,7 @@ AddrSpace::~AddrSpace()
 //	when this thread is context switched out.
 //----------------------------------------------------------------------
 
-void
-AddrSpace::InitRegisters()
+void AddrSpace::InitRegisters()
 {
     int i;
 
@@ -303,3 +180,4 @@ void AddrSpace::RestoreState()
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }
+

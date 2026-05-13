@@ -55,13 +55,13 @@ void CheckEndian()
 Machine::Machine(bool debug)
 {   
     frameMap = new BitMap(NumPhysPages);
-    frameMapLock = new Lock("frameLock");
-    frameMap->Mark(0);
-    frameMap->Mark(2);
-    frameMap->Mark(4);
-    frameMap->Mark(6);
-    frameMap->Mark(8);
-    frameMap->Mark(10);
+    // frameMapLock = new Lock("frameLock");
+    // frameMap->Mark(0);
+    // frameMap->Mark(2);
+    // frameMap->Mark(4);
+    // frameMap->Mark(6);
+    // frameMap->Mark(8);
+    // frameMap->Mark(10);
     int i;
 
     for (i = 0; i < NumTotalRegs; i++)
