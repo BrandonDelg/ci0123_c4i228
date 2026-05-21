@@ -1,0 +1,20 @@
+[2026-05-20 21:02:55] [Cliente]: 
+	[>]	Conexion establecida al servidor local
+[2026-05-20 21:02:55] [Cliente]: 
+	[>]	GET /figuras HTTP/1.1\r [>] \n [>] Host: 127.0.0.1\r [>] \n [>] \r [>] \n [>] 
+[2026-05-20 21:03:02] [Cliente]: 
+	[>]	Conexion establecida
+[2026-05-20 21:03:02] [Cliente]: 
+	[>]	GET /figura/mariposa/1 HTTP/1.1\r [>] \n [>] Host: 127.0.0.1\r [>] \n [>] \r [>] \n [>] 
+[2026-05-20 22:12:25] [Cliente]: 
+	[>]	Conexion establecida al servidor local
+[2026-05-20 22:12:25] [Cliente]: 
+	[>]	GET /figuras HTTP/1.1\r [>] \n [>] Host: 127.0.0.1\r [>] \n [>] \r [>] \n [>] 
+[2026-05-20 22:12:34] [Cliente]: 
+	[>]	Conexion establecida
+[2026-05-20 22:12:34] [Cliente]: 
+	[>]	GET /figura/mariposa/2 HTTP/1.1\r [>] \n [>] Host: 127.0.0.1\r [>] \n [>] \r [>] \n [>] 
+[2026-05-20 22:12:40] [Cliente]: 
+	[>]	Conexion establecida
+[2026-05-20 22:12:40] [Cliente]: 
+	[>]	GET /figura/mariposa/1 HTTP/1.1\r [>] \n [>] Host: 127.0.0.1\r [>] \n [>] \r [>] \n [>] 

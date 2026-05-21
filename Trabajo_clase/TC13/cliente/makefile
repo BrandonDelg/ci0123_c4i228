@@ -21,7 +21,7 @@ COMMON_SRC = $(filter %Socket.cpp %VSocket.cpp %FileSystem.cpp, $(FSOURCE))
 
 SERVER_SRC = $(filter %ThreadMirrorServer.cpp, $(FSOURCE)) $(COMMON_SRC)
 CLIENT_SRC = $(filter %main.cpp %Client.cpp %Logger.cpp, $(FSOURCE)) $(COMMON_SRC)
-INTERMEDIARIO_SRC = $(filter %Intermediario.cpp, $(FSOURCE)) $(COMMON_SRC)
+INTERMEDIARIO_SRC = $(filter %intermediario.cpp, $(FSOURCE)) $(COMMON_SRC)
 INSERTARFS_SRC = $(filter %insertarEnFS.cpp, $(FSOURCE)) $(COMMON_SRC)
 
 SERVER_OBJ = $(SERVER_SRC:$(SRC)/%.cpp=$(BUILD)/%.o)

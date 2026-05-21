@@ -17,15 +17,15 @@
 #define MAXBUF 1024 /** Tamaño maximo del buffer */
 
 int main(int argc, char* argv[]) {
-
-   if (argc < 3) {
-      std::cerr << "Uso: " << argv[0] << " <host> <ipv6 0|1>\n";
-      return 1;
+   if (argc < 4) {
+   std::cerr << "Uso: " << argv[0]
+             << " <host> <ipv6 0|1> <puerto>\n";
+   return 1;
    }
 
    const char* host = argv[1];
    bool ipv6 = std::stoi(argv[2]);
-   const char* service = "8080";
+   const char* service = argv[3];
 
    Client cliente(1);
    Logger log("./logs.log");
