@@ -89,6 +89,9 @@ AddrSpace::AddrSpace(OpenFile *executable)
     NoffHeader noffH;
     unsigned int i, size;
 
+    openFilesTable = new NachosOpenFilesTable();
+    openFilesTable->addThread();
+
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
@@ -157,6 +160,8 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
+    openFilesTable->delThread();
+    delete openFilesTable;
     for (unsigned int i = 0; i < numPages; i++) {
         machine->frameMap->Clear(pageTable[i].physicalPage);
     }

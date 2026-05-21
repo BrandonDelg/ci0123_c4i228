@@ -16,11 +16,13 @@
 #include "copyright.h"
 #include "filesys.h"
 #include "machine.h"
+#include "nachostabla.h"
 
 #define UserStackSize		1024 	// increase this as necessary!
 
 class AddrSpace {
   public:
+    NachosOpenFilesTable *openFilesTable;
     AddrSpace(OpenFile *executable);	// Create an address space,
     void LoadSegment(OpenFile *executable, int virtualAddr, int size, int inFileAddr);
 

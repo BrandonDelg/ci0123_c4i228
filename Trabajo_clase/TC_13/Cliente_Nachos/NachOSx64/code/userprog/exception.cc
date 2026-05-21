@@ -138,7 +138,14 @@ void NachOS_Write()
       result = fwrite(buffer, 1, size, stdout);
       fflush(stdout);
    } else {
-      result = send(file, buffer, size, 0);
+      int unixFd =
+      currentThread->space->openFilesTable->getUnixHandle(file);
+
+      if (unixFd < 0) {
+         machine->WriteRegister(2, -1);
+         return;
+      }
+      result = send(unixFd, buffer, size, 0);
    }
 
    machine->WriteRegister(2, result);
@@ -174,7 +181,15 @@ void NachOS_Read()
 
       result = i;
    } else {
-      result = recv(file, buffer, size, 0);
+      int unixFd =
+      currentThread->space->openFilesTable->getUnixHandle(file);
+
+      if (unixFd < 0) {
+         machine->WriteRegister(2, -1);
+         return;
+      }
+
+      result = recv(unixFd, buffer, size, 0);
    }
 
    if (result > 0) {
@@ -191,14 +206,24 @@ void NachOS_Read()
  */
 void NachOS_Close()
 {
-   int id = machine->ReadRegister(4);
+   int nachosFd = machine->ReadRegister(4);
 
-   if (id <= 2) {
+   if (nachosFd <= 2) {
       machine->WriteRegister(2, -1);
       return;
    }
 
-   int result = close(id);
+   int unixFd =
+      currentThread->space->openFilesTable
+         ->Close(nachosFd);
+
+   if (unixFd < 0) {
+      machine->WriteRegister(2, -1);
+      return;
+   }
+
+   int result = close(unixFd);
+
    machine->WriteRegister(2, result);
 }
 /*
@@ -321,9 +346,17 @@ void NachOS_Socket()
       sockType = SOCK_DGRAM;
    }
 
-   int id = socket(sockFamily, sockType, 0);
+   int unixFd = socket(sockFamily, sockType, 0);
 
-   machine->WriteRegister(2, id);
+   if (unixFd < 0) {
+      machine->WriteRegister(2, -1);
+      return;
+   }
+
+   int nachosFd =
+   currentThread->space->openFilesTable->Open(unixFd);
+
+   machine->WriteRegister(2, nachosFd);
 }
 
 /*
@@ -356,8 +389,14 @@ void NachOS_Connect()
    server.sin_port = htons(port);
    server.sin_addr.s_addr = inet_addr(ip);
 
-   int result = connect(sockId, (struct sockaddr *) &server, sizeof(server));
+   int unixFd = currentThread->space->openFilesTable->getUnixHandle(sockId);
 
+   if (unixFd < 0) {
+      machine->WriteRegister(2, -1);
+      return;
+   }
+
+   int result = connect(unixFd,(struct sockaddr *) &server,sizeof(server));
    machine->WriteRegister(2, result);
 }
 
