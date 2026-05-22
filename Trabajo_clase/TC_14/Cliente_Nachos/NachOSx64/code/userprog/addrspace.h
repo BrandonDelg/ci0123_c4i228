@@ -22,25 +22,30 @@
 
 class AddrSpace {
   public:
-    NachosOpenFilesTable *openFilesTable;
-    AddrSpace(OpenFile *executable);	// Create an address space,
-    void LoadSegment(OpenFile *executable, int virtualAddr, int size, int inFileAddr);
-
-					// initializing it with the program
-					// stored in the file "executable"
-    ~AddrSpace();			// De-allocate an address space
-
-    void InitRegisters();		// Initialize user-level CPU registers,
-					// before jumping to user code
-
-    void SaveState();			// Save/restore address space-specific
-    void RestoreState();		// info on a context switch 
-
+  AddrSpace(OpenFile *executable);	// Create an address space,
+  AddrSpace(AddrSpace *parent);
+  void LoadSegment(OpenFile *executable, int virtualAddr, int size, int inFileAddr);
+  
+  // initializing it with the program
+  // stored in the file "executable"
+  ~AddrSpace();			// De-allocate an address space
+  
+  void InitRegisters();		// Initialize user-level CPU registers,
+  // before jumping to user code
+  
+  void SaveState();			// Save/restore address space-specific
+  void RestoreState();		// info on a context switch 
+    
+  NachosOpenFilesTable *openFilesTable;
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
+    int stackPages;
+    int stackStartPage;
+
+    int *memoryUsers;
 };
 
 #endif // ADDRSPACE_H

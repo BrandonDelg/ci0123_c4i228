@@ -105,6 +105,11 @@ AddrSpace::AddrSpace(OpenFile *executable)
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
+    stackPages = divRoundUp(UserStackSize, PageSize);
+    stackStartPage = numPages - stackPages;
+    memoryUsers = new int;
+    *memoryUsers = 1;
+
     ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have
@@ -113,12 +118,12 @@ AddrSpace::AddrSpace(OpenFile *executable)
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
     // Prueba: reservar frames físicos antes de cargar el programa
-    machine->frameMap->Mark(0);
-    machine->frameMap->Mark(2);
-    machine->frameMap->Mark(4);
-    machine->frameMap->Mark(6);
-    machine->frameMap->Mark(8);
-    machine->frameMap->Mark(10);
+    // machine->frameMap->Mark(0);
+    // machine->frameMap->Mark(2);
+    // machine->frameMap->Mark(4);
+    // machine->frameMap->Mark(6);
+    // machine->frameMap->Mark(8);
+    // machine->frameMap->Mark(10);
 // first, set up the translation 
     this->pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
@@ -152,7 +157,39 @@ AddrSpace::AddrSpace(OpenFile *executable)
     }
 
 }
+AddrSpace::AddrSpace(AddrSpace *parent)
+{
+    numPages = parent->numPages;
+    stackPages = parent->stackPages;
+    stackStartPage = parent->stackStartPage;
 
+    memoryUsers = parent->memoryUsers;
+    (*memoryUsers)++;
+
+    openFilesTable = parent->openFilesTable;
+    openFilesTable->addThread();
+
+    pageTable = new TranslationEntry[numPages];
+
+    for (unsigned int i = 0; i < numPages; i++) {
+        pageTable[i] = parent->pageTable[i];
+    }
+
+    // Nueva pila física para el hijo
+    for (int i = stackStartPage; i < (int)numPages; i++) {
+        int frame = machine->frameMap->Find();
+
+        ASSERT(frame != -1);
+
+        pageTable[i].physicalPage = frame;
+        pageTable[i].valid = true;
+        pageTable[i].use = false;
+        pageTable[i].dirty = false;
+        pageTable[i].readOnly = false;
+
+        bzero(&(machine->mainMemory[frame * PageSize]), PageSize);
+    }
+}
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
 // 	Dealloate an address space.  Nothing for now!
@@ -161,12 +198,36 @@ AddrSpace::AddrSpace(OpenFile *executable)
 AddrSpace::~AddrSpace()
 {
     openFilesTable->delThread();
-    delete openFilesTable;
+
+    (*memoryUsers)--;
+
+    bool lastUser = (*memoryUsers == 0);
+
     for (unsigned int i = 0; i < numPages; i++) {
-        machine->frameMap->Clear(pageTable[i].physicalPage);
+
+        bool isStackPage = ((int)i >= stackStartPage);
+
+        if (isStackPage || lastUser) {
+            machine->frameMap->Clear(pageTable[i].physicalPage);
+        }
     }
+
     delete [] pageTable;
+
+    if (lastUser) {
+        delete openFilesTable;
+        delete memoryUsers;
+    }
 }
+// AddrSpace::~AddrSpace()
+// {
+//     openFilesTable->delThread();
+//     delete openFilesTable;
+//     for (unsigned int i = 0; i < numPages; i++) {
+//         machine->frameMap->Clear(pageTable[i].physicalPage);
+//     }
+//     delete [] pageTable;
+// }
 
 //----------------------------------------------------------------------
 // AddrSpace::InitRegisters
