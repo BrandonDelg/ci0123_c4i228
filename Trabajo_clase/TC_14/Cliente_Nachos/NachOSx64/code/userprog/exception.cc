@@ -149,8 +149,8 @@ void NachOS_Exit()
 }
 /*
  *  System call interface: SpaceId Exec( char * )
- */void NachosExecThread(void *arg)
-{
+ */
+void NachosExecThread(void *arg) {
    ExecInfo *info = (ExecInfo *)arg;
 
    OpenFile *executable = fileSystem->Open(info->filename);
@@ -169,6 +169,21 @@ void NachOS_Exit()
    processTable[info->pid].thread = currentThread;
 
    currentThread->space = new AddrSpace(executable);
+
+   if (!currentThread->space->IsValid()) {
+      processTable[info->pid].exitStatus = -1;
+      processTable[info->pid].joinSem->V();
+
+      delete currentThread->space;
+      currentThread->space = NULL;
+
+      delete executable;
+      delete [] info->filename;
+      delete info;
+
+      currentThread->Finish();
+      return;
+   }
 
    delete executable;
    delete [] info->filename;
