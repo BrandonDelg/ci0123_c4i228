@@ -1,0 +1,256 @@
+Isla 1:
+enable
+conf t
+
+hostname isla1
+
+ip dhcp excluded-address 172.16.123.17
+ip dhcp excluded-address 172.16.123.18
+
+ip dhcp pool isla1
+ network 172.16.123.16 255.255.255.240
+ default-router 172.16.123.17
+
+interface range fa0/1-12
+ switchport mode access
+ switchport access vlan 210
+
+interface fa0/13
+ switchport mode trunk
+ switchport trunk allowed vlan 210
+
+interface vlan 210
+ ip address 172.16.123.18 255.255.255.240
+ no shutdown
+
+ip default-gateway 172.16.123.17
+
+end
+wr          
+
+Isla 2:
+
+enable
+conf t
+
+hostname isla2
+
+ip dhcp excluded-address 172.16.123.33
+ip dhcp excluded-address 172.16.123.34
+
+ip dhcp pool isla2
+ network 172.16.123.32 255.255.255.240
+ default-router 172.16.123.33
+
+interface range fa0/1-12
+ switchport mode access
+ switchport access vlan 220
+
+interface fa0/13
+ switchport mode trunk
+ switchport trunk allowed vlan 220
+
+interface vlan 220
+ ip address 172.16.123.34 255.255.255.240
+ no shutdown
+
+ip default-gateway 172.16.123.33
+
+end
+wr                
+
+Isla 3:
+
+enable
+conf t
+
+hostname isla3
+
+ip dhcp excluded-address 172.16.123.49
+ip dhcp excluded-address 172.16.123.50
+
+ip dhcp pool isla3
+ network 172.16.123.48 255.255.255.240
+ default-router 172.16.123.49
+
+interface range fa0/1-12
+ switchport mode access
+ switchport access vlan 230
+
+interface fa0/13
+ switchport mode trunk
+ switchport trunk allowed vlan 230
+
+interface vlan 230
+ ip address 172.16.123.50 255.255.255.240
+ no shutdown
+
+ip default-gateway 172.16.123.49
+
+end
+wr         
+
+
+Isla 4:
+
+enable
+conf t
+
+hostname isla4
+
+ip dhcp excluded-address 172.16.123.65
+ip dhcp excluded-address 172.16.123.66
+
+ip dhcp pool isla4
+ network 172.16.123.64 255.255.255.240
+ default-router 172.16.123.65
+
+interface range fa0/1-12
+ switchport mode access
+ switchport access vlan 240
+
+interface fa0/13
+ switchport mode trunk
+ switchport trunk allowed vlan 240
+
+interface vlan 240
+ ip address 172.16.123.66 255.255.255.240
+ no shutdown
+
+ip default-gateway 172.16.123.65
+
+end
+wr        
+
+Isla 5: 
+
+enable
+conf t
+
+hostname isla5
+
+ip dhcp excluded-address 172.16.123.81
+ip dhcp excluded-address 172.16.123.82
+
+ip dhcp pool isla5
+ network 172.16.123.80 255.255.255.240
+ default-router 172.16.123.81
+
+interface range fa0/1-12
+ switchport mode access
+ switchport access vlan 250
+
+interface fa0/13
+ switchport mode trunk
+ switchport trunk allowed vlan 250
+
+interface vlan 250
+ ip address 172.16.123.82 255.255.255.240
+ no shutdown
+
+ip default-gateway 172.16.123.81
+
+end
+wr
+
+Isla 6:
+
+enable
+conf t
+
+hostname isla6
+
+ip dhcp excluded-address 172.16.123.97
+ip dhcp excluded-address 172.16.123.98
+
+ip dhcp pool isla6
+ network 172.16.123.96 255.255.255.240
+ default-router 172.16.123.97
+
+interface range fa0/1-12
+ switchport mode access
+ switchport access vlan 260
+
+interface fa0/13
+ switchport mode trunk
+ switchport trunk allowed vlan 260
+
+interface vlan 260
+ ip address 172.16.123.98 255.255.255.240
+ no shutdown
+
+ip default-gateway 172.16.123.97
+
+end
+wr
+
+
+
+L3:
+enable
+conf t
+
+hostname L3-capa8
+
+ip routing
+
+interface fa0/2
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 210
+
+interface fa0/3
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 220
+
+interface fa0/4
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 230
+
+interface fa0/5
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 240
+
+interface fa0/6
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 250
+
+interface fa0/7
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 260
+
+interface vlan 210
+ ip address 172.16.123.17 255.255.255.240
+ no shutdown
+
+interface vlan 220
+ ip address 172.16.123.33 255.255.255.240
+ no shutdown
+
+interface vlan 230
+ ip address 172.16.123.49 255.255.255.240
+ no shutdown
+
+interface vlan 240
+ ip address 172.16.123.65 255.255.255.240
+ no shutdown
+
+interface vlan 250
+ ip address 172.16.123.81 255.255.255.240
+ no shutdown
+
+interface vlan 260
+ ip address 172.16.123.97 255.255.255.240
+ no shutdown
+
+interface vlan 1
+ no ip address
+ shutdown
+
+end
+wr
