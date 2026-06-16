@@ -1,0 +1,15 @@
+La información sobre qué servidor posee cada figura se almacena en una 
+tabla de rutas implementada mediante un std::map<std::string, std::vector<Ruta>>, 
+donde la llave (std::string) corresponde al nombre de la figura y el valor es
+una lista de rutas (std::vector<Ruta>) que indican en qué servidor o intermediario
+se encuentra disponible.
+
+host: dirección IP o nombre del servidor.
+port: puerto de comunicación.
+local: indica si la ruta corresponde al servidor local o a un servidor remoto.
+activo: indica si la ruta está actualmente disponible.
+
+Por ejemplo, la tabla podría contener:
+
+"Perro" ->
+    { host="10.1.35.10", port="1235", local=true,  activo=true }
