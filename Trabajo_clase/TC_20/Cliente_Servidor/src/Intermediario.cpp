@@ -4,12 +4,6 @@
 #include <cstring>
 #include <sstream>
 
-#define PORT_HANDSHAKE 3031
-#define PORT_JOIN 3030
-
-#define BROADCAST_PUBLICO "10.1.35.255"///
-#define PUERTO_TP_DESCUBRIMIENTO 3030 ///
-
 Intermediario::Intermediario(VSocket* fork, char* host, const char* port)
     : SERVER_HOST(host), SERVER_PORT(port), intermediario(fork) {
 }
@@ -236,19 +230,33 @@ std::string Intermediario::consultarServidorLocal(const std::string& ruta, bool 
 VSocket*  Intermediario::getFork() {
     return this->intermediario;
 }
-std::string Intermediario::consultarIntermediariosTP(const std::string& figura, int mitad,bool ipv6) {
+std::string Intermediario::consultarIntermediariosTP(
+    const std::string& figura,
+    int mitad,
+    bool ipv6) {
+
     std::string clave = figura;
+
     if (tablaRutas.find(clave) == tablaRutas.end()) {
-        std::cout << "[TP] No tengo ruta para "
-                << figura
-                << ". Refrescando tabla global...\n";
+
+        std::cout
+            << "[TP] No tengo ruta para "
+            << figura
+            << ". Refrescando tabla global..."
+            << std::endl;
 
         descubrirOtrosIntermediarios();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(300)
+        );
 
         if (tablaRutas.find(clave) == tablaRutas.end()) {
-            std::cout << "[TP] Figura no encontrada tras refrescar tabla\n";
+
+            std::cout
+                << "[TP] Figura no encontrada tras refrescar tabla"
+                << std::endl;
+
             return "";
         }
     }
@@ -260,42 +268,90 @@ std::string Intermediario::consultarIntermediariosTP(const std::string& figura, 
     solicitud.content = figura;
     solicitud.contentLength = figura.length();
 
-    std::string mensaje = empaquetarTP(solicitud);
+    std::string mensaje =
+        empaquetarTP(solicitud);
 
     for (Ruta& ruta : tablaRutas[clave]) {
 
         if (!ruta.activo) {
             continue;
         }
-        VSocket* remoto = new Socket('s', ipv6);
+
+        VSocket* remoto =
+            new Socket('s', ipv6);
+
         try {
-            remoto->Connect(ruta.host.c_str(), ruta.port.c_str());
-            remoto->Write(mensaje.c_str(),mensaje.length());
+
+            remoto->Connect(
+                ruta.host.c_str(),
+                ruta.port.c_str()
+            );
+
+            remoto->Write(
+                mensaje.c_str(),
+                mensaje.length()
+            );
+
             char buffer[BUFSIZE] = {0};
-            int st = remoto->Read(buffer,BUFSIZE - 1);
+
+            int st =
+                remoto->Read(
+                    buffer,
+                    BUFSIZE - 1
+                );
+
             if (st > 0) {
-                std::string respuestaRaw(buffer,st);
-                PaqueteTP respuesta =
-                    desempaquetarTP(respuestaRaw);
-                if (respuesta.tipo == INTERMEDIARY_RESPONSE) {
+
+                std::string respuestaRaw(
+                    buffer,
+                    st
+                );
+
+                uint8_t tipo =
+                    static_cast<uint8_t>(
+                        respuestaRaw[0]
+                    );
+
+                if (tipo == INTERMEDIARY_RESPONSE) {
+
+                    std::string piezas =
+                        extraerPiezasTP(
+                            respuestaRaw
+                        );
+
                     remoto->Close();
                     delete remoto;
-                    return respuesta.content;
+
+                    return piezas;
                 }
-                if (respuesta.tipo == FIGURE_NOT_FOUND) {
+
+                if (tipo == FIGURE_NOT_FOUND) {
+
                     ruta.activo = false;
-                    std::cout << "[TABLA] Ruta inactiva: "
-                            << figura << " -> "
-                            << ruta.host << ":"
-                            << ruta.port << std::endl;
+
+                    std::cout
+                        << "[TABLA] Ruta inactiva: "
+                        << figura
+                        << " -> "
+                        << ruta.host
+                        << ":"
+                        << ruta.port
+                        << std::endl;
                 }
             }
+
         } catch (...) {
+
             ruta.activo = false;
-            std::cout << "[TABLA] Ruta inactiva por error de conexion: "
-              << figura << " -> "
-              << ruta.host << ":"
-              << ruta.port << std::endl;
+
+            std::cout
+                << "[TABLA] Ruta inactiva por error de conexion: "
+                << figura
+                << " -> "
+                << ruta.host
+                << ":"
+                << ruta.port
+                << std::endl;
         }
 
         remoto->Close();
@@ -305,43 +361,70 @@ std::string Intermediario::consultarIntermediariosTP(const std::string& figura, 
     return "";
 }
 std::string Intermediario::empaquetarTP(const PaqueteTP& paquete) {
+
     std::string data;
 
-    data.push_back(static_cast<char>(paquete.tipo));
-    data.push_back(static_cast<char>(paquete.mitad));
-    data.push_back(static_cast<char>(paquete.contentLength));
+    data.push_back(paquete.tipo);
 
-    data += paquete.content;
+    if (paquete.tipo == INTERMEDIARY_REQUEST) {
+
+        data.push_back(paquete.mitad);
+
+        uint8_t len =
+            static_cast<uint8_t>(paquete.content.size());
+
+        data.push_back(len);
+
+        data += paquete.content;
+    }
+    else if (paquete.tipo == FIGURE_NOT_FOUND) {
+
+        // solo el byte tipo
+    }
 
     return data;
 }
-PaqueteTP Intermediario::desempaquetarTP(const std::string& data) {
-    PaqueteTP paquete;
+PaqueteTP Intermediario::desempaquetarTP(
+    const std::string& data) {
 
-    if (data.size() < 3) {
+    PaqueteTP paquete{};
+
+    if (data.empty()) {
+
         paquete.tipo = FIGURE_NOT_FOUND;
-        paquete.mitad = 0;
-        paquete.contentLength = 0;
-        paquete.content = "";
         return paquete;
     }
 
     paquete.tipo =
         static_cast<uint8_t>(data[0]);
 
+    if (paquete.tipo == FIGURE_NOT_FOUND) {
+
+        return paquete;
+    }
+
+    if (data.size() < 3) {
+
+        paquete.tipo = FIGURE_NOT_FOUND;
+        return paquete;
+    }
+
     paquete.mitad =
         static_cast<uint8_t>(data[1]);
 
-    paquete.contentLength =
+    uint8_t len =
         static_cast<uint8_t>(data[2]);
 
-    if (data.size() >= 3 + static_cast<size_t>(paquete.contentLength)) {
-            paquete.content =
-            data.substr(3, paquete.contentLength);
-    } else {
+    if (data.size() < 3 + len) {
+
         paquete.tipo = FIGURE_NOT_FOUND;
-        paquete.content = "";
+        return paquete;
     }
+
+    paquete.content =
+        data.substr(3, len);
+
+    paquete.contentLength = len;
 
     return paquete;
 }
@@ -389,122 +472,238 @@ void Intermediario::iniciarDescubrimientoIntermediarios() {
 
 
 void Intermediario::escucharIntermediariosTP() {
+
     VSocket* udp = new Socket('d', false);
 
     udp->Bind(PORT_JOIN);
 
-    std::cout << "[TP UDP] Intermediario escuchando en puerto "
-              << PORT_JOIN << std::endl;
+    std::cout
+        << "[TP UDP] Intermediario escuchando en puerto "
+        << PORT_JOIN
+        << std::endl;
 
     while (true) {
+
         char buffer[BUFSIZE] = {0};
 
         sockaddr_in sender;
         memset(&sender, 0, sizeof(sender));
 
-        int st = udp->recvFrom(buffer, BUFSIZE - 1, &sender);
+        int st =
+            udp->recvFrom(
+                buffer,
+                BUFSIZE,
+                &sender
+            );
 
-        if (st > 0) {
-            buffer[st] = '\0';
+        if (st <= 0)
+            continue;
 
-            char ip[INET_ADDRSTRLEN];
+        uint8_t tipo =
+            static_cast<uint8_t>(buffer[0]);
 
-            inet_ntop(AF_INET,
-                      &sender.sin_addr,
-                      ip,
-                      sizeof(ip));
+        char ip[INET_ADDRSTRLEN];
 
-            std::string mensaje = buffer;
-            std::string ipOrigen = ip;
+        inet_ntop(
+            AF_INET,
+            &sender.sin_addr,
+            ip,
+            sizeof(ip)
+        );
 
-            std::cout << "[TP UDP] Recibido desde "
-                      << ipOrigen << ": "
-                      << mensaje << std::endl;
+        if (ipOrigen == std::string(SERVER_HOST)) {
+            continue;
+        }
+        if (tipo == INTERMEDIARY_JOIN) {
+            std::cout
+                << "[TP UDP] JOIN recibido desde "
+                << ipOrigen
+                << std::endl;
 
-            //procesarMensajeIntermediario(mensaje, ipOrigen);
+            procesarJoinIntermediario(ipOrigen);
 
-           if (mensaje.find("INTERMEDIARY_JOIN") == 0) {
-                procesarJoinIntermediario(mensaje, ipOrigen);
-                actualizarFigurasDesdeServidorLocal(false);
-                std::string figuras = obtenerFigurasLocalesComoCSV();
+            actualizarFigurasDesdeServidorLocal(false);
 
-                std::string respuesta =
-                    "INTERMEDIARY_HANDSHAKE|port=" +
-                    std::to_string(PORT_HANDSHAKE) +
-                    ";figuras=" + figuras;
+            std::string contenido =
+            std::string(SERVER_HOST) +
+            ";" +
+            std::to_string(PORT_HANDSHAKE) +
+            ";" +
+            obtenerFigurasLocalesComoCSV();
 
-                size_t posPort = mensaje.find("port=");
+            std::vector<uint8_t> respuesta;
 
-                if (posPort != std::string::npos) {
-                    std::string portStr = mensaje.substr(posPort + 5);
-                    size_t posPuntoComa = portStr.find(";");
+            respuesta.push_back(
+                INTERMEDIARY_HANDSHAKE
+            );
 
-                    if (posPuntoComa != std::string::npos) {
-                        portStr = portStr.substr(0, posPuntoComa);
-                    }
+            uint32_t len =
+                static_cast<uint32_t>(
+                    contenido.size()
+                );
 
-                    int puertoRespuesta = std::stoi(portStr);
-                    sender.sin_port = htons(puertoRespuesta);
-                }
+            const uint8_t* lenBytes =
+                reinterpret_cast<uint8_t*>(&len);
 
-                udp->sendTo(respuesta.c_str(),
-                            respuesta.length(),
-                            &sender);
+            respuesta.insert(
+                respuesta.end(),
+                lenBytes,
+                lenBytes + 4
+            );
 
-                std::cout << "[TP UDP] HANDSHAKE enviado: "
-                        << respuesta << std::endl;
-            }
-            else {
-                procesarMensajeIntermediario(mensaje, ipOrigen);
+            respuesta.insert(
+                respuesta.end(),
+                contenido.begin(),
+                contenido.end()
+            );
+
+            try {
+
+                VSocket* tcp =
+                    new Socket('s', false);
+
+                tcp->Connect(
+                    ipOrigen.c_str(),
+                    "3031"
+                );
+
+                tcp->Write(
+                    reinterpret_cast<char*>(respuesta.data()),
+                    respuesta.size()
+                );
+
+                std::cout
+                    << "[TP TCP] HANDSHAKE enviado a "
+                    << ipOrigen
+                    << ":3031"
+                    << std::endl;
+
+                tcp->Close();
+                delete tcp;
+
+            } catch (...) {
+
+                std::cout
+                    << "[TP TCP] Error enviando HANDSHAKE a "
+                    << ipOrigen
+                    << std::endl;
             }
         }
+        
     }
 }
 
 void Intermediario::descubrirOtrosIntermediarios() {
+
     VSocket* udp = new Socket('d', false);
+
     udp->EnableBroadcast();
+    
 
-    std::string mensaje =
-        "INTERMEDIARY_JOIN|port=" +
-        std::to_string(PORT_HANDSHAKE) +
-        ";figuras=" +
-        obtenerFigurasLocalesComoCSV();
+    uint8_t paquete[5];
 
-    udp->Broadcast(
-        mensaje.c_str(),
-        mensaje.length(),
-        BROADCAST_PUBLICO,
-        PUERTO_TP_DESCUBRIMIENTO
+    paquete[0] = INTERMEDIARY_JOIN;
+
+    in_addr ip;
+    inet_aton(SERVER_HOST, &ip);
+
+    memcpy(
+        paquete + 1,
+        &ip.s_addr,
+        sizeof(ip.s_addr)
     );
 
-    std::cout << "[TP UDP] Broadcast JOIN enviado a "
-              << BROADCAST_PUBLICO << ":"
-              << PUERTO_TP_DESCUBRIMIENTO
-              << " -> "
-              << mensaje << std::endl;
+    for (const char* broadcast : BROADCASTS) {
 
+        udp->Broadcast(
+            reinterpret_cast<char*>(paquete),
+            sizeof(paquete),
+            broadcast,
+            PORT_JOIN
+        );
+        std::cout
+        << "[BROADCAST] enviando a "
+        << broadcast
+        << ":"
+        << PORT_JOIN
+        << std::endl;
+    }
+    
     udp->Close();
     delete udp;
 }
+void Intermediario::procesarMensajeIntermediario(const std::string& raw,const std::string& ipOrigen) {
+    std::cout
+    // << "[HANDSHAKE] Procesando mensaje de "
+    // << ipOrigen
+    // << std::endl;
+    if (raw.size() < 5)
+        return;
 
-void Intermediario::procesarMensajeIntermediario(const std::string& mensaje,const std::string& ipOrigen) {
-    if (mensaje.find("INTERMEDIARY_HANDSHAKE|") != 0) return;
+    const uint8_t* data =
+        reinterpret_cast<const uint8_t*>(raw.data());
 
-    size_t posPort = mensaje.find("port=");
-    size_t posFig = mensaje.find(";figuras=");
+    if (data[0] != INTERMEDIARY_HANDSHAKE)
+        return;
 
-    if (posPort == std::string::npos || posFig == std::string::npos) return;
+    uint32_t len;
 
-    std::string port = mensaje.substr(posPort + 5, posFig - (posPort + 5));
-    std::string figuras = mensaje.substr(posFig + 9);
+    memcpy(
+        &len,
+        data + 1,
+        4
+    );
+
+    if (raw.size() < 5 + len)
+        return;
+
+    std::string contenido(
+        raw.data() + 5,
+        len
+    );
+
+    size_t pos1 = contenido.find(";");
+
+    if (pos1 == std::string::npos)
+        return;
+
+    size_t pos2 = contenido.find(";", pos1 + 1);
+
+    if (pos2 == std::string::npos)
+        return;
+
+    std::string ip =
+        contenido.substr(0, pos1);
+
+    std::string port =
+        contenido.substr(
+            pos1 + 1,
+            pos2 - pos1 - 1
+        );
+
+    std::string figuras =
+        contenido.substr(pos2 + 1);
 
     std::stringstream ss(figuras);
+
     std::string figura;
 
-    while (std::getline(ss, figura, ',')) {
+    std::cout
+    << "[HANDSHAKE] puerto="
+    << port
+    << " figuras="
+    << figuras
+    << std::endl;
+
+    while (getline(ss, figura, ',')) {
+
         if (!figura.empty()) {
-            agregarRutaRemota(figura, ipOrigen, port);
+
+            agregarRutaRemota(
+                figura,
+                ip,
+                port
+            );
         }
     }
 }
@@ -562,94 +761,204 @@ std::string Intermediario::obtenerFigurasLocalesComoCSV() {
     return resultado;
 }
 void Intermediario::escucharSolicitudesTP() {
+
     VSocket* listener = new Socket('s', false);
 
     listener->Bind(PORT_HANDSHAKE);
     listener->MarkPassive(5);
 
-    std::cout << "[TP TCP] Escuchando solicitudes en puerto "
-              << PORT_HANDSHAKE << std::endl;
+    std::cout
+        << "[TP TCP] Escuchando solicitudes en puerto "
+        << PORT_HANDSHAKE
+        << std::endl;
 
     while (true) {
-        VSocket* peer = listener->AcceptConnection();
 
-        std::thread worker([this](VSocket* socket) {
+        VSocket* peer =
+            listener->AcceptConnection();
+
+        std::thread worker(
+        [this](VSocket* socket) {
+
             char buffer[BUFSIZE] = {0};
 
-            int st = socket->Read(buffer, BUFSIZE - 1);
+            int st =
+                socket->Read(
+                    buffer,
+                    BUFSIZE
+                );
 
             if (st > 0) {
-                std::string raw(buffer, st);
-                PaqueteTP paquete = desempaquetarTP(raw);
 
-                if (paquete.tipo == INTERMEDIARY_REQUEST) {
-                    std::string figura = paquete.content;
-                    int mitad = paquete.mitad;
+                std::string raw(
+                    buffer,
+                    st
+                );
+                uint8_t tipo =
+                static_cast<uint8_t>(raw[0]);
+
+                if (tipo == INTERMEDIARY_HANDSHAKE) {
+                    std::cout
+                    << "[TP TCP] HANDSHAKE recibido"
+                    << std::endl;
+                    procesarMensajeIntermediario(raw, "");
+                    socket->Close();
+                    delete socket;
+                    return;
+                }
+
+                PaqueteTP paquete =
+                    desempaquetarTP(raw);
+
+                if (paquete.tipo ==
+                    INTERMEDIARY_REQUEST) {
+
+                    std::string figura =
+                        paquete.content;
+
+                    int mitad =
+                        paquete.mitad;
 
                     std::string ruta =
-                        "/figura/" + figura + "/" + std::to_string(mitad);
+                        "/figura/" +
+                        figura +
+                        "/" +
+                        std::to_string(mitad);
 
-                    std::string http = consultarServidorLocal(ruta, false);
-
-                    PaqueteTP respuesta;
+                    std::string http =
+                        consultarServidorLocal(
+                            ruta,
+                            false
+                        );
 
                     if (http.find("HTTP/1.1 200 OK") == 0 ||
                         http.find("HTTP/1.0 200 OK") == 0) {
 
-                        size_t pos = http.find("\r\n\r\n");
+                        size_t pos =
+                            http.find("\r\n\r\n");
+
                         std::string piezas =
                             (pos != std::string::npos)
                             ? http.substr(pos + 4)
                             : "";
 
-                        respuesta.tipo = INTERMEDIARY_RESPONSE;
-                        respuesta.mitad = mitad;
-                        respuesta.content = piezas;
-                        respuesta.contentLength = piezas.length();
+                        std::vector<uint8_t> respuesta;
+
+                        respuesta.push_back(
+                            INTERMEDIARY_RESPONSE
+                        );
+
+                        respuesta.push_back(
+                            static_cast<uint8_t>(mitad)
+                        );
+
+                        respuesta.push_back(
+                            static_cast<uint8_t>(
+                                figura.size()
+                            )
+                        );
+
+                        respuesta.insert(
+                            respuesta.end(),
+                            figura.begin(),
+                            figura.end()
+                        );
+
+                        uint32_t len =
+                            static_cast<uint32_t>(
+                                piezas.size()
+                            );
+
+                        const uint8_t* lenBytes =
+                            reinterpret_cast<uint8_t*>(&len);
+
+                        respuesta.insert(
+                            respuesta.end(),
+                            lenBytes,
+                            lenBytes + 4
+                        );
+
+                        respuesta.insert(
+                            respuesta.end(),
+                            piezas.begin(),
+                            piezas.end()
+                        );
+
+                        socket->Write(
+                            reinterpret_cast<char*>(
+                                respuesta.data()
+                            ),
+                            respuesta.size()
+                        );
 
                     } else {
-                        respuesta.tipo = FIGURE_NOT_FOUND;
-                        respuesta.mitad = mitad;
-                        respuesta.content = "FIGURE_NOT_FOUND";
-                        respuesta.contentLength = respuesta.content.length();
-                    }
 
-                    std::string salida = empaquetarTP(respuesta);
-                    socket->Write(salida.c_str(), salida.length());
+                        uint8_t notFound =
+                            FIGURE_NOT_FOUND;
+
+                        socket->Write(
+                            reinterpret_cast<char*>(
+                                &notFound
+                            ),
+                            1
+                        );
+                    }
                 }
             }
 
             socket->Close();
             delete socket;
+
         }, peer);
 
         worker.detach();
     }
 }
+std::string Intermediario::extraerPiezasTP(const std::string& raw) {
 
-void Intermediario::procesarJoinIntermediario(const std::string& mensaje,
-                                              const std::string& ipOrigen) {
-    size_t posPort = mensaje.find("port=");
-    size_t posFiguras = mensaje.find(";figuras=");
+    if (raw.size() < 7)
+        return "";
 
-    if (posPort == std::string::npos ||
-        posFiguras == std::string::npos) {
-        return;
-    }
+    const uint8_t* data =
+        reinterpret_cast<const uint8_t*>(raw.data());
 
-    std::string port = mensaje.substr(posPort + 5,
-                                      posFiguras - (posPort + 5));
+    if (data[0] != INTERMEDIARY_RESPONSE)
+        return "";
 
-    std::string figuras = mensaje.substr(posFiguras + 9);
+    uint8_t figuraLen = data[2];
 
-    std::stringstream ss(figuras);
-    std::string figura;
+    size_t pos =
+        3 + figuraLen;
 
-    while (std::getline(ss, figura, ',')) {
-        if (!figura.empty()) {
-            agregarRutaRemota(figura, ipOrigen, port);
-        }
-    }
+    if (raw.size() < pos + 4)
+        return "";
+
+    uint32_t piezasLen;
+
+    memcpy(
+        &piezasLen,
+        data + pos,
+        4
+    );
+
+    pos += 4;
+
+    if (raw.size() < pos + piezasLen)
+        return "";
+
+    return raw.substr(
+        pos,
+        piezasLen
+    );
+}
+void Intermediario::procesarJoinIntermediario(const std::string& ipOrigen) {
+
+    actualizarFigurasDesdeServidorLocal(false);
+
+    std::cout
+        << "[JOIN] "
+        << ipOrigen
+        << std::endl;
 }
 
 void Intermediario::actualizarFigurasDesdeServidorLocal(bool ipv6) {

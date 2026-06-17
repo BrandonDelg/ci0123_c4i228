@@ -378,3 +378,23 @@
 	[>]	Conexion establecida
 [2026-06-14 01:41:48] [Cliente]: 
 	[>]	GET /figura/Maeva/1 HTTP/1.1\r [>] \n [>] Host: 127.0.0.1\r [>] \n [>] \r [>] \n [>] 
+[2026-06-16 22:34:25] [Cliente]: 
+	[>]	Conexion establecida al servidor local
+[2026-06-16 22:34:25] [Cliente]: 
+	[>]	GET /figuras HTTP/1.1\r [>] \n [>] Host: 192.168.219.130\r [>] \n [>] \r [>] \n [>] 
+[2026-06-16 23:22:23] [Cliente]: 
+	[>]	Conexion establecida al servidor local
+[2026-06-16 23:22:23] [Cliente]: 
+	[>]	GET /figuras HTTP/1.1\r [>] \n [>] Host: 192.168.219.130\r [>] \n [>] \r [>] \n [>] 
+[2026-06-16 23:22:31] [Cliente]: 
+	[>]	Conexion establecida
+[2026-06-16 23:22:31] [Cliente]: 
+	[>]	GET /figura/Jaguarsh/1 HTTP/1.1\r [>] \n [>] Host: 192.168.219.130\r [>] \n [>] \r [>] \n [>] 
+[2026-06-17 00:03:43] [Cliente]: 
+	[>]	Conexion establecida al servidor local
+[2026-06-17 00:03:43] [Cliente]: 
+	[>]	GET /figuras HTTP/1.1\r [>] \n [>] Host: 192.168.219.130\r [>] \n [>] \r [>] \n [>] 
+[2026-06-17 00:03:49] [Cliente]: 
+	[>]	Conexion establecida
+[2026-06-17 00:03:49] [Cliente]: 
+	[>]	GET /figura/Jaguarsh/1 HTTP/1.1\r [>] \n [>] Host: 192.168.219.130\r [>] \n [>] \r [>] \n [>] 

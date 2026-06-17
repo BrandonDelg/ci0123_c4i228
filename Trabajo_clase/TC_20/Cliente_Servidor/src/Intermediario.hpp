@@ -12,24 +12,34 @@
 #include <vector>
 #include <cstdint>
 
-
-//#define BROADCAST_ISLA "172.16.123.95"
-#define BROADCAST_ISLA "192.168.0.255"
-#define BUFSIZE 512
-
-#define DISCOVERY_PORT_INTERMEDIARIO 9092
-#define DISCOVERY_PORT_SERVIDOR      9093
-
-#define TP_JOIN_PORT      3030   // UDP
-#define TP_TCP_PORT       3031   // TCP
-
-#define PORT 8085
-
 #define INTERMEDIARY_JOIN       0
 #define INTERMEDIARY_HANDSHAKE  1
 #define INTERMEDIARY_REQUEST    2
 #define INTERMEDIARY_RESPONSE   3
 #define FIGURE_NOT_FOUND        4
+
+#define BUFSIZE 512
+#define DISCOVERY_PORT_INTERMEDIARIO 9092
+#define DISCOVERY_PORT_SERVIDOR      9093
+
+#define PORT_JOIN 3030 // UDP
+#define PUERTO_TP_DESCUBRIMIENTO 3030 // UDP
+#define PORT_HANDSHAKE 3031 // TCP
+
+#define PORT 8085
+
+// const char* BROADCASTS[] = {
+//     "172.16.123.15",
+//     "172.16.123.31",
+//     "172.16.123.47",
+//     "172.16.123.63",
+//     "172.16.123.79",
+//     "172.16.123.95",
+//     "172.16.123.111"
+// };
+const char* BROADCASTS[] = {
+    "192.168.219.255"
+};
 
 struct Ruta {
     std::string host;
@@ -38,12 +48,14 @@ struct Ruta {
     bool local;
 };
 struct PaqueteTP {
-    uint8_t tipo;
-    uint8_t mitad;
-    uint8_t contentLength;
+    uint8_t tipo = 0;
+    uint8_t mitad = 0;
+    uint8_t figureNameLength = 0;
+    std::string figureName;
+    uint32_t contentLength = 0;
     std::string content;
 };
-//#define SERVER_PORT "1234"
+
 class Intermediario {
     public:
         Intermediario(VSocket* fork, char* SERVER_HOST, const char* SERVER_PORT);
@@ -51,16 +63,16 @@ class Intermediario {
         void task(VSocket* client, bool ipv6);
         std::string consultarServidorLocal(const std::string& ruta, bool ipv6);
         std::string consultarIntermediariosTP(const std::string& figura, int mitad, bool ipv6);
-        std::string extraerPiezasTP(const std::string& respuestaTP);
+        //std::string extraerPiezasTP(const std::string& respuestaTP);
         std::string empaquetarTP(const PaqueteTP& paquete);
         PaqueteTP desempaquetarTP(const std::string& data);
         VSocket* getFork();
-        void iniciarDescubrimiento();
-        void procesarJoinIntermediario(const std::string& mensaje,
-                               const std::string& ipOrigen);
+        void iniciarDescubrimiento();         
+        void procesarJoinIntermediario(const std::string& ipOrigen);
         void iniciarDescubrimientoIntermediarios();
         void escucharSolicitudesTP();
         void actualizarFigurasDesdeServidorLocal(bool ipv6);
+        std::string extraerPiezasTP(const std::string& respuestaTP);
 
     private:
         char* SERVER_HOST;
