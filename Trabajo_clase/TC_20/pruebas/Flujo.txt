@@ -1,0 +1,10 @@
+En este sistema, el flujo de información para que un cliente obtenga 
+una figura inicia cuando el cliente realiza una petición HTTP al servidor
+de figuras, específicamente solicitando el recurso /figuras o una figura en
+particular mediante /figura/nombre/parte. El servidor recibe la solicitud, 
+consulta el sistema de archivos interno donde están almacenadas las figuras y sus 
+piezas, y genera una respuesta HTTP con la información correspondiente. Si la figura está
+distribuida en el sistema, el intermediario puede participar enviando o reenviando la solicitud
+hacia otros nodos mediante mensajes UDP de descubrimiento, obteniendo respuestas de otros intermediarios o servidores.
+Finalmente, el servidor consolida las piezas disponibles y las envía de vuelta al cliente, quien reconstruye
+o visualiza la figura a partir de la respuesta recibida.

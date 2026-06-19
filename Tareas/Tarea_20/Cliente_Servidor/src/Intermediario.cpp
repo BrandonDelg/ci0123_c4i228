@@ -510,7 +510,7 @@ void Intermediario::escucharIntermediariosTP() {
             ip,
             sizeof(ip)
         );
-
+        std::string ipOrigen(ip);
         if (ipOrigen == std::string(SERVER_HOST)) {
             continue;
         }
@@ -633,7 +633,7 @@ void Intermediario::descubrirOtrosIntermediarios() {
     delete udp;
 }
 void Intermediario::procesarMensajeIntermediario(const std::string& raw,const std::string& ipOrigen) {
-    std::cout
+    // std::cout
     // << "[HANDSHAKE] Procesando mensaje de "
     // << ipOrigen
     // << std::endl;
