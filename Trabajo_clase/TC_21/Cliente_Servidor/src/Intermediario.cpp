@@ -240,6 +240,7 @@ std::string Intermediario::consultarIntermediariosTP(
     bool ipv6) {
 
     std::string clave = figura;
+    std::lock_guard<std::mutex> lock(mutexTabla);
 
     if (tablaRutas.find(clave) == tablaRutas.end()) {
 
@@ -417,7 +418,7 @@ PaqueteTP Intermediario::desempaquetarTP(
     uint8_t len =
         static_cast<uint8_t>(data[2]);
 
-    if (data.size() < 3 + len) {
+    if (data.size() < static_cast<size_t>(3) + len) {
 
         paquete.tipo = FIGURE_NOT_FOUND;
         return paquete;
@@ -602,18 +603,18 @@ void Intermediario::descubrirOtrosIntermediarios() {
     udp->EnableBroadcast();
     
 
-    uint8_t paquete[5];
+    uint8_t paquete[1];
 
     paquete[0] = INTERMEDIARY_JOIN;
 
-    in_addr ip;
-    inet_aton(SERVER_HOST, &ip);
+    // in_addr ip;
+    // inet_aton(SERVER_HOST, &ip);
 
-    memcpy(
-        paquete + 1,
-        &ip.s_addr,
-        sizeof(ip.s_addr)
-    );
+    // memcpy(
+    //     paquete + 1,
+    //     &ip.s_addr,
+    //     sizeof(ip.s_addr)
+    // );
 
     for (const char* broadcast : BROADCASTS) {
 
@@ -634,11 +635,7 @@ void Intermediario::descubrirOtrosIntermediarios() {
     udp->Close();
     delete udp;
 }
-void Intermediario::procesarMensajeIntermediario(const std::string& raw,const std::string& ipOrigen) {
-    // std::cout
-    // << "[HANDSHAKE] Procesando mensaje de "
-    // << ipOrigen
-    // << std::endl;
+void Intermediario::procesarMensajeIntermediario(const std::string& raw) {
     if (raw.size() < 5)
         return;
 
@@ -698,9 +695,7 @@ void Intermediario::procesarMensajeIntermediario(const std::string& raw,const st
     << std::endl;
 
     while (getline(ss, figura, ',')) {
-
         if (!figura.empty()) {
-
             agregarRutaRemota(
                 figura,
                 ip,
@@ -803,7 +798,7 @@ void Intermediario::escucharSolicitudesTP() {
                     std::cout
                     << "[TP TCP] HANDSHAKE recibido"
                     << std::endl;
-                    procesarMensajeIntermediario(raw, "");
+                    procesarMensajeIntermediario(raw);
                     socket->Close();
                     delete socket;
                     return;
@@ -992,7 +987,6 @@ void Intermediario::actualizarFigurasDesdeServidorLocal(bool ipv6) {
 
 int main(int argc, char* argv[]) {
     VSocket* intermediario;
-    std::thread* worker;
     if (argc < 3) {
         std::cerr << "Uso: " << argv[0] << " <host> <ipv6 0|1>\n";
         return 1;
@@ -1011,8 +1005,7 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         VSocket* client = fork.getFork()->AcceptConnection();
-        worker = new std::thread(&Intermediario::task, &fork, client, ipv6);
-        worker->detach();
+        std::thread(&Intermediario::task,&fork,client,ipv6).detach();
     }
 
     return 0;

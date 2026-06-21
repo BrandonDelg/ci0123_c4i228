@@ -90,7 +90,7 @@ class Intermediario {
 
         void escucharIntermediariosTP();
         void descubrirOtrosIntermediarios();
-        void procesarMensajeIntermediario(const std::string& mensaje,const std::string& ipOrigen);
+        void procesarMensajeIntermediario(const std::string& mensaje);
         std::string obtenerFigurasLocalesComoCSV();
         void agregarRutaRemota(const std::string& figura, const std::string& host, const std::string& port);
 };

@@ -264,7 +264,7 @@ void anunciarServidor() {
  *
  **/
 int main(int argc, char* argv[]) {
-   std::thread * worker;
+   //std::thread * worker;
    VSocket * s1, * client;
    if (argc < 2) {
       std::cerr << "Uso: " << argv[0] << "<ipv6 0|1>\n";
@@ -284,7 +284,8 @@ int main(int argc, char* argv[]) {
    announceThread.detach();
    for( ; ; ) {
       client = s1->AcceptConnection();	 	// Wait for a client connection
-      worker = new std::thread( task, client );
+      std::thread worker(task, client);
+      worker.detach();
    }
 
 }
