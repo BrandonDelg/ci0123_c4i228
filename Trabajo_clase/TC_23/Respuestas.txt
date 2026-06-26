@@ -1,0 +1,10 @@
+Para permitir la integración entre servidores intermediarios y el descubrimiento 
+de servidores ubicados en otras islas, se definió un protocolo propio basado en mensajes
+identificados mediante un campo tipo. Entre los mensajes utilizados se encuentra INTERMEDIARY_JOIN,
+enviado mediante UDP broadcast para anunciar la presencia de un nuevo intermediario en la red y permitir
+que otros intermediarios lo registren. Posteriormente se utiliza INTERMEDIARY_HANDSHAKE, transportado mediante TCP, 
+para intercambiar el catálogo de figuras disponibles y actualizar las tablas de rutas de cada intermediario. 
+Para la obtención de piezas específicas se utilizan los mensajes INTERMEDIARY_REQUEST y INTERMEDIARY_RESPONSE, los cuales 
+incluyen el nombre de la figura y la mitad solicitada. Finalmente, el mensaje FIGURE_NOT_FOUND permite indicar que una figura 
+o mitad ya no se encuentra disponible, permitiendonos invalidar rutas obsoletas y mantener sincronizada la información distribuida
+entre las distintas islas.
